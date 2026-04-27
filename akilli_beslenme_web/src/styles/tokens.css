@@ -1,0 +1,51 @@
+:root {
+  /* --- Renk Paleti --- */
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-secondary: #10b981;
+  --color-accent: #8b5cf6;
+  --color-bg: #f8fafc;
+  --color-text: #1e293b;
+  --color-muted: #64748b;
+  --color-surface: rgba(255, 255, 255, 0.85);
+  --color-border: #e2e8f0;
+  
+  --gradient-bg: linear-gradient(135deg, #c7d2fe 0%, #fecdd3 100%);
+  --gradient-btn: linear-gradient(45deg, #8b5cf6, #d946ef);
+  --gradient-btn-hover: linear-gradient(45deg, #7c3aed, #c026d3);
+
+  /* --- Spacing (Bosluk) Skalasi --- */
+  --space-xs: 0.25rem;  /* 4px */
+  --space-sm: 0.5rem;   /* 8px */
+  --space-md: 1rem;     /* 16px */
+  --space-lg: 1.5rem;   /* 24px */
+  --space-xl: 2rem;     /* 32px */
+  --space-2xl: 3rem;    /* 48px */
+  --space-3xl: 4rem;    /* 64px */
+
+  /* --- Border Radius --- */
+  --radius-sm: 4px;
+  --radius-md: 12px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
+
+  /* --- Font Aileleri --- */
+  --font-sans: 'Outfit', system-ui, -apple-system, sans-serif;
+
+  /* --- Font Boyutlari (Fluid) --- */
+  --text-sm: clamp(0.8rem, 0.75rem + 0.25vw, 0.9rem);
+  --text-base: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1rem + 0.6vw, 1.35rem);
+  --text-xl: clamp(1.25rem, 1rem + 1.2vw, 1.5rem);
+  --text-2xl: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+  --text-3xl: clamp(1.8rem, 1.2rem + 3vw, 3rem);
+
+  /* --- Golge --- */
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 10px 25px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.08);
+
+  /* --- Gecis --- */
+  --transition-fast: 150ms ease;
+  --transition-normal: 300ms ease;
+}

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "317134399775",
+    "project_id": "akilli-beslenme-asistani",
+    "storage_bucket": "akilli-beslenme-asistani.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:317134399775:android:a762248d20663eaccd282a",
+        "android_client_info": {
+          "package_name": "com.example.akilli_beslenme_mobil"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7FaFLlvhuu2v2RVPnNiBQ0fKBDS1YbXs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

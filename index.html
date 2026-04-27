@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akıllı Sağlık & Beslenme Asistanı</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary: #10b981;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --gradient: linear-gradient(135deg, #c7d2fe 0%, #fecdd3 100%);
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: var(--gradient);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .navbar {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .navbar span {
+            font-size: 0.9rem;
+            background: var(--primary);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            padding: 40px 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+        }
+
+        .card-header {
+            margin-bottom: 25px;
+        }
+
+        .card-header h2 {
+            font-size: 1.4rem;
+            color: var(--dark);
+            margin-bottom: 5px;
+        }
+
+        .card-header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-main);
+            font-size: 0.9rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.9);
+            transition: all 0.3s;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background: var(--primary-hover);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-ai {
+            background: linear-gradient(45deg, #8b5cf6, #d946ef);
+        }
+
+        .btn-ai:hover {
+            background: linear-gradient(45deg, #7c3aed, #c026d3);
+        }
+
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 12px;
+            background: #f0fdf4;
+            color: #166534;
+            font-weight: 500;
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .ai-result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 12px;
+            background: #faf5ff;
+            color: #581c87;
+            font-weight: 400;
+            line-height: 1.6;
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 15px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 15px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        th {
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tbody tr {
+            transition: background 0.2s;
+        }
+
+        tbody tr:hover {
+            background: rgba(248, 250, 252, 0.8);
+        }
+
+        .badge-normal { background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; }
+        .badge-zayif { background: #fef08a; color: #854d0e; padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; }
+        .badge-fazla { background: #ffedd5; color: #9a3412; padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; }
+        .badge-obez { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; }
+
+        .loader {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* File Input Styling */
+        .file-upload-wrapper {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        .file-upload-wrapper input[type="file"] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            z-index: 10;
+        }
+        .file-upload-display {
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            background: #f8fafc;
+            color: var(--text-muted);
+            transition: all 0.3s;
+        }
+        .file-upload-wrapper:hover .file-upload-display {
+            border-color: #8b5cf6;
+            background: #f3f4f6;
+        }
+        #imagePreview {
+            max-width: 100%;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <h1>🌿 Akıllı Beslenme <span>AI Destekli</span></h1>
+        <div style="font-weight: 500; color: var(--text-muted);">Hoş Geldiniz 🙌</div>
+    </nav>
+
+    <div class="container">
+        <!-- Sol Kolon: Veri Girişi ve AI -->
+        <div class="left-col" style="display: flex; flex-direction: column; gap: 30px;">
+            
+            <!-- VKİ Formu -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Fiziksel Verilerini Gir</h2>
+                    <p>Boy ve kilonu girerek vücut kitle indeksini anında hesapla.</p>
+                </div>
+                <form id="vkiForm">
+                    <div class="form-group">
+                        <label>İsim Soyisim</label>
+                        <input type="text" id="isim" placeholder="Örn: Ahmet Yılmaz" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Boy (cm)</label>
+                        <input type="number" id="boy" placeholder="Örn: 175" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Kilo (kg)</label>
+                        <input type="number" id="kilo" placeholder="Örn: 70" required>
+                    </div>
+                    <button type="submit">Hesapla ve Kaydet</button>
+                </form>
+                <div id="sonuc" class="result-box"></div>
+            </div>
+
+            <!-- Yapay Zeka AI Formu -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>🤖 Yapay Zeka Yemek Analizi</h2>
+                    <p>Yemeğinin fotoğrafını yükle, kalorisini ve içeriğini söyleyelim.</p>
+                </div>
+                <div class="file-upload-wrapper">
+                    <input type="file" id="yemekFoto" accept="image/*">
+                    <div class="file-upload-display">
+                        <svg style="width: 40px; height: 40px; margin-bottom: 10px; color: #8b5cf6;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        <div>Fotoğraf Seç veya Sürükle Bırak</div>
+                    </div>
+                </div>
+                <img id="imagePreview" src="" alt="Yemek Önizleme">
+                <button type="button" class="btn-ai" id="analizBtn" style="margin-top: 15px;" disabled>
+                    <span id="btnText">Fotoğrafı Analiz Et</span>
+                    <div class="loader" id="aiLoader"></div>
+                </button>
+                <div id="aiSonuc" class="ai-result"></div>
+            </div>
+
+        </div>
+
+        <!-- Sağ Kolon: Liste -->
+        <div class="right-col">
+            <div class="card" style="height: 100%;">
+                <div class="card-header">
+                    <h2>Kullanıcı Geçmişi</h2>
+                    <p>Sisteme kayıt olan kullanıcıların sağlık durumu.</p>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>İsim</th>
+                                <th>Boy/Kilo</th>
+                                <th>VKİ</th>
+                                <th>Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabloGövde">
+                            <!-- JS ile doldurulacak -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+        
+        // Yardımcı fonksiyon: Duruma göre badge rengi belirleme
+        function getBadgeClass(durum) {
+            if (durum === "Normal") return "badge-normal";
+            if (durum === "Zayıf") return "badge-zayif";
+            if (durum === "Fazla Kilolu") return "badge-fazla";
+            return "badge-obez";
+        }
+
+        // 1. Tabloyu Güncelle
+        async function listeyiYenile() {
+            try {
+                const cevap = await fetch(`${API_URL}/kullanicilar`);
+                const veriler = await cevap.json();
+                const tablo = document.getElementById('tabloGövde');
+                
+                tablo.innerHTML = "";
+                // Listeyi tersine çevirerek son ekleneni en üstte görelim
+                veriler.reverse().forEach(k => {
+                    tablo.innerHTML += `
+                        <tr>
+                            <td style="font-weight: 500;">${k.isim}</td>
+                            <td>${k.boy} cm / ${k.kilo} kg</td>
+                            <td style="font-weight: bold;">${k.vki}</td>
+                            <td><span class="${getBadgeClass(k.durum)}">${k.durum}</span></td>
+                        </tr>
+                    `;
+                });
+            } catch (hata) {
+                console.error("Liste hatası:", hata);
+            }
+        }
+
+        // 2. Form Gönderimi (Kayıt)
+        document.getElementById('vkiForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            const originalText = btn.innerText;
+            btn.innerText = "Kaydediliyor...";
+            btn.disabled = true;
+
+            const veri = {
+                isim: document.getElementById('isim').value,
+                boy: parseInt(document.getElementById('boy').value),
+                kilo: parseInt(document.getElementById('kilo').value)
+            };
+
+            try {
+                const cevap = await fetch(`${API_URL}/kayit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(veri)
+                });
+                
+                const sonucKutusu = document.getElementById('sonuc');
+                sonucKutusu.innerText = await cevap.text();
+                sonucKutusu.style.display = "block";
+
+                listeyiYenile();
+                e.target.reset();
+            } catch (hata) {
+                alert("Sunucuya bağlanılamadı. Node.js çalışıyor mu?");
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+                setTimeout(() => { document.getElementById('sonuc').style.display = 'none'; }, 5000);
+            }
+        });
+
+        // 3. AI Fotoğraf İşlemleri
+        let currentBase64 = null;
+        let currentMimeType = null;
+        const fotoInput = document.getElementById('yemekFoto');
+        const imgPreview = document.getElementById('imagePreview');
+        const analizBtn = document.getElementById('analizBtn');
+
+        fotoInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                currentMimeType = file.type;
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    imgPreview.src = event.target.result;
+                    imgPreview.style.display = "block";
+                    // Data URL'den base64 kısmını ayır
+                    currentBase64 = event.target.result.split(',')[1];
+                    analizBtn.disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        analizBtn.addEventListener('click', async () => {
+            if (!currentBase64) return;
+
+            const btnText = document.getElementById('btnText');
+            const loader = document.getElementById('aiLoader');
+            const sonucKutusu = document.getElementById('aiSonuc');
+
+            btnText.innerText = "Analiz Ediliyor...";
+            loader.style.display = "block";
+            analizBtn.disabled = true;
+            sonucKutusu.style.display = "none";
+
+            try {
+                const cevap = await fetch(`${API_URL}/analiz-et`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ gorselBase64: currentBase64, mimeType: currentMimeType })
+                });
+
+                if (cevap.ok) {
+                    // Markdow formatı gelebilir, HTML taglarına çevirerek gösterelim
+                    const metin = await cevap.text();
+                    sonucKutusu.innerHTML = metin.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+                    sonucKutusu.style.display = "block";
+                } else {
+                    const hataMetni = await cevap.text();
+                    alert("Analiz başarısız: " + hataMetni);
+                }
+            } catch (hata) {
+                alert("Yapay zeka analiz API hatası.");
+            } finally {
+                btnText.innerText = "Fotoğrafı Analiz Et";
+                loader.style.display = "none";
+                analizBtn.disabled = false;
+            }
+        });
+
+        // İlk Yükleme
+        listeyiYenile();
+    </script>
+</body>
+</html>

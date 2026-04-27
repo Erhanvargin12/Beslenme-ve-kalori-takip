@@ -1,0 +1,95 @@
+[
+  {
+    "isim": "Mehmet",
+    "boy": 180,
+    "kilo": 80,
+    "vki": 24.69,
+    "durum": "Normal"
+  },
+  {
+    "isim": "Erhan",
+    "boy": 174,
+    "kilo": 73,
+    "vki": 24.11,
+    "durum": "Normal"
+  },
+  {
+    "isim": "Mustafa",
+    "boy": 185,
+    "kilo": 86,
+    "vki": 25.13,
+    "durum": "Fazla Kilolu"
+  },
+  {
+    "isim": "Emrullah",
+    "boy": 193,
+    "kilo": 90,
+    "vki": 24.16,
+    "durum": "Normal"
+  },
+  {
+    "isim": "Antigravity Test",
+    "boy": 175,
+    "kilo": 85,
+    "vki": 27.76,
+    "durum": "Fazla Kilolu"
+  },
+  {
+    "isim": "Canl",
+    "boy": 190,
+    "kilo": 90,
+    "vki": 24.93,
+    "durum": "Normal"
+  },
+  {
+    "isim": "mutalip ",
+    "boy": 178,
+    "kilo": 80,
+    "vki": 25.25,
+    "durum": "Fazla Kilolu"
+  },
+  {
+    "isim": "muhamet",
+    "boy": 178,
+    "kilo": 62,
+    "vki": 19.57,
+    "durum": "Normal"
+  },
+  {
+    "isim": "hasan turna",
+    "boy": 190,
+    "kilo": 90,
+    "vki": 24.93,
+    "durum": "Normal"
+  },
+  {
+    "isim": "eren",
+    "boy": 185,
+    "kilo": 105,
+    "vki": 30.68,
+    "durum": "Obez"
+  },
+  {
+    "isim": "Ay",
+    "boy": 165,
+    "kilo": 55,
+    "vki": 20.2,
+    "durum": "Normal"
+  },
+  {
+    "isim": "Test SOLID Native",
+    "boy": 180,
+    "kilo": 75,
+    "vki": 23.15,
+    "durum": "Normal",
+    "createdAt": "2026-04-09T07:47:31.405Z"
+  },
+  {
+    "isim": "doğuş",
+    "boy": 195,
+    "kilo": 90,
+    "vki": 23.67,
+    "durum": "Normal",
+    "createdAt": "2026-04-09T10:07:44.289Z"
+  }
+]

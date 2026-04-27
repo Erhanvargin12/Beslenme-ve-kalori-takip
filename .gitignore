@@ -1,0 +1,39 @@
+# Dependency directories
+node_modules/
+akilli_beslenme_mobil/.dart_tool/
+akilli_beslenme_mobil/.packages
+akilli_beslenme_mobil/build/
+akilli_beslenme_web/node_modules/
+akilli_beslenme_web/dist/
+backend/node_modules/
+
+# Environment variables and secrets
+.env
+*.env
+serviceAccountKey.json
+*.p12
+*.jks
+*.keystore
+
+# IDE and System files
+.vscode/
+.idea/
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Flutter specific
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
