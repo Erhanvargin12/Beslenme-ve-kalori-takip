@@ -1,12 +1,23 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'dart:io';
+import 'dart:async';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import 'package:dio/dio.dart';
 import '../providers/data_provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/dio_service.dart';
 import '../widgets/professional_card.dart';
+import '../config/api_config.dart';
+import '../widgets/server_settings_sheet.dart';
 import '../theme/app_theme.dart';
 
 class AIScreen extends StatefulWidget {
@@ -18,6 +29,7 @@ class AIScreen extends StatefulWidget {
 
 class _AIScreenState extends State<AIScreen> {
   Uint8List? _imageBytes;
+  String? _imagePath;
   
   @override
   Widget build(BuildContext context) {
@@ -33,9 +45,9 @@ class _AIScreenState extends State<AIScreen> {
             flexibleSpace: FlexibleSpaceBar(
               centerTitle: false,
               title: Text(
-                '✨ AI Şef Analizi',
+                'AI Şef Analizi',
                 style: GoogleFonts.outfit(
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w600,
                   color: const Color(0xFF1E293B),
                   fontSize: 20,
                 ),
@@ -64,54 +76,79 @@ class _AIScreenState extends State<AIScreen> {
   }
 
   Widget _buildImagePicker() {
-    return GestureDetector(
-      onTap: () => _showPickerOptions(),
-      child: Container(
-        height: 280,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(32),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.primaryColor.withOpacity(0.08),
-              blurRadius: 40,
-              offset: const Offset(0, 16),
-            ),
-          ],
-          image: _imageBytes != null 
-            ? DecorationImage(image: MemoryImage(_imageBytes!), fit: BoxFit.cover)
-            : null,
-          border: Border.all(color: Colors.white, width: 4),
-        ),
-        child: _imageBytes == null
-          ? Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.1), shape: BoxShape.circle),
-                  child: const Icon(Icons.add_a_photo_outlined, size: 40, color: AppTheme.primaryColor),
-                ),
-                const SizedBox(height: 15),
-                Text("Öğününüzün Fotoğrafını Çekin", style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
-                const SizedBox(height: 5),
-                Text("Tek tıkla kalori analizi yapın", style: GoogleFonts.inter(color: Colors.grey, fontSize: 13)),
-              ],
-            )
-          : Stack(
-              children: [
-                Positioned(
-                  bottom: 15,
-                  right: 15,
-                  child: CircleAvatar(
-                    backgroundColor: Colors.white,
-                    child: IconButton(onPressed: () => _showPickerOptions(), icon: const Icon(Icons.edit, color: AppTheme.primaryColor)),
+    return Container(
+      height: 280,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withValues(alpha: 0.08),
+            blurRadius: 40,
+            offset: const Offset(0, 16),
+          ),
+        ],
+        image: _imageBytes != null 
+          ? DecorationImage(image: MemoryImage(_imageBytes!), fit: BoxFit.cover)
+          : null,
+        border: Border.all(color: Colors.white, width: 4),
+      ),
+      child: _imageBytes == null
+        ? Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text("Fotoğraf Kaynağı Seçin", style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: const Color(0xFF1E293B))),
+              const SizedBox(height: 30),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildPickerButton(
+                    icon: Icons.camera_alt_rounded,
+                    label: "Kamera",
+                    onTap: () => _pickImage(ImageSource.camera),
                   ),
+                  _buildPickerButton(
+                    icon: Icons.image_rounded,
+                    label: "Galeri",
+                    onTap: () => _pickImage(ImageSource.gallery),
+                  ),
+                ],
+              ),
+            ],
+          )
+        : Stack(
+            children: [
+              Positioned(
+                bottom: 15,
+                right: 15,
+                child: CircleAvatar(
+                  backgroundColor: Colors.white,
+                  child: IconButton(onPressed: () => _showPickerOptions(), icon: const Icon(Icons.edit, color: AppTheme.primaryColor)),
                 ),
-              ],
+              ),
+            ],
+          ),
+    ).animate().fadeIn(duration: 500.ms).scale(begin: const Offset(0.95, 0.95));
+  }
+
+  Widget _buildPickerButton({required IconData icon, required String label, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
             ),
-      ).animate().fadeIn(duration: 500.ms).scale(begin: const Offset(0.95, 0.95)),
+            child: Icon(icon, size: 32, color: AppTheme.primaryColor),
+          ),
+          const SizedBox(height: 10),
+          Text(label, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: const Color(0xFF475569))),
+        ],
+      ),
     );
   }
 
@@ -151,7 +188,7 @@ class _AIScreenState extends State<AIScreen> {
         gradient: AppTheme.primaryGradient,
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.35),
+            color: AppTheme.primaryColor.withValues(alpha: 0.35),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -190,7 +227,7 @@ class _AIScreenState extends State<AIScreen> {
       padding: const EdgeInsets.only(bottom: 15),
       child: Row(
         children: [
-          Icon(icon, color: AppTheme.accentColor.withOpacity(0.7), size: 24),
+          Icon(icon, color: AppTheme.accentColor.withValues(alpha: 0.7), size: 24),
           const SizedBox(width: 15),
           Expanded(child: Text(text, style: const TextStyle(color: Color(0xFF475569), height: 1.4))),
         ],
@@ -205,34 +242,114 @@ class _AIScreenState extends State<AIScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => AnalysisResultModal(imageBytes: _imageBytes!),
+      builder: (context) => AnalysisResultModal(imageBytes: _imageBytes!, imagePath: _imagePath),
     );
   }
 
   Future<void> _pickImage(ImageSource source) async {
+    if (!await _checkPermissions(source)) return;
+
     final ImagePicker picker = ImagePicker();
     try {
-      final XFile? image = await picker.pickImage(source: source, maxWidth: 800, imageQuality: 85);
-      if (image != null) {
-        final bytes = await image.readAsBytes();
-        setState(() { _imageBytes = bytes; });
+      final XFile? image = await picker.pickImage(source: source);
+      
+      // Yol kontrolü ve Hata Yakalayıcı
+      if (image == null || image.path.isEmpty) {
+        throw Exception("Fotoğraf seçilemedi veya dosya yolu boş.");
       }
+
+      // Sıkıştırma İşlemi
+      final compressedBytes = await FlutterImageCompress.compressWithFile(
+        image.path,
+        minWidth: 800,
+        minHeight: 800,
+        quality: 75,
+      );
+
+      if (compressedBytes == null || compressedBytes.isEmpty) {
+        throw Exception("Dosya sıkıştırılamadı veya boş.");
+      }
+
+      setState(() { 
+        _imageBytes = compressedBytes; 
+        _imagePath = image.path;
+      });
+      
+      debugPrint("Fotoğraf seçildi: $_imagePath");
+      // Hata Giderme: Dosya yolunu ham olarak yazdır
+      debugPrint('Seçilen Dosya: ${image.path}');
+      
     } catch (e) {
       debugPrint("Fotoğraf seçme hatası: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Hata: ${e.toString()}"), backgroundColor: Colors.redAccent),
+        );
+      }
     }
+  }
+
+  Future<bool> _checkPermissions(ImageSource source) async {
+    if (source == ImageSource.camera) {
+      final status = await Permission.camera.request();
+      if (status.isPermanentlyDenied) {
+        openAppSettings();
+        return false;
+      }
+      if (status.isDenied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Hata: Kamera izni reddedildi."), backgroundColor: Colors.orange),
+          );
+        }
+        return false;
+      }
+    } else {
+      PermissionStatus status;
+      if (Platform.isAndroid) {
+        final androidInfo = await DeviceInfoPlugin().androidInfo;
+        if (androidInfo.version.sdkInt >= 33) {
+          status = await Permission.photos.request();
+        } else {
+          status = await Permission.storage.request();
+        }
+      } else {
+        status = await Permission.photos.request();
+      }
+
+      if (status.isPermanentlyDenied) {
+        openAppSettings();
+        return false;
+      }
+
+      if (status.isDenied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Hata: Galeri izni reddedildi."), backgroundColor: Colors.orange),
+          );
+        }
+        return false;
+      }
+    }
+    return true;
   }
 }
 
+enum AnalysisState { initial, loading, success, error }
+
 class AnalysisResultModal extends StatefulWidget {
   final Uint8List imageBytes;
-  const AnalysisResultModal({super.key, required this.imageBytes});
+  final String? imagePath;
+  const AnalysisResultModal({super.key, required this.imageBytes, this.imagePath});
 
   @override
   State<AnalysisResultModal> createState() => _AnalysisResultModalState();
 }
 
 class _AnalysisResultModalState extends State<AnalysisResultModal> {
-  String? _result;
+  AnalysisState _currentState = AnalysisState.initial;
+  Map<String, dynamic>? _result;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -241,15 +358,83 @@ class _AnalysisResultModalState extends State<AnalysisResultModal> {
   }
 
   Future<void> _analyze() async {
-    final dataProvider = context.read<DataProvider>();
-    final base64Image = base64Encode(widget.imageBytes);
-    
-    final result = await dataProvider.analyzeFood(base64Image);
-    
-    if (mounted) {
+    setState(() {
+      _currentState = AnalysisState.loading;
+      _result = null;
+      _errorMessage = null;
+    });
+
+    try {
+      // İnternet Kontrolü
+      var connectivityResult = await (Connectivity().checkConnectivity());
+      if (connectivityResult.contains(ConnectivityResult.none)) {
+        throw Exception("İnternet bağlantısı yok. Lütfen bağlantınızı kontrol edin.");
+      }
+
+      debugPrint("Analiz başlatılıyor: ${widget.imagePath}");
+      
+      if (!mounted) return;
+      final dataProvider = context.read<DataProvider>();
+      final base64Image = base64Encode(widget.imageBytes);
+      
+      final result = await dataProvider.analyzeFoodDetailed(base64Image, imagePath: widget.imagePath);
+      
+      if (!mounted) return;
+      
       setState(() {
         _result = result;
+        if (_result?['yemek_adi'] == 'Bilinmiyor') {
+          _errorMessage = "Yemek tanımlanamadı. Karışık veya belirsiz bir fotoğraf olabilir.";
+          _currentState = AnalysisState.error;
+        } else {
+          _currentState = AnalysisState.success;
+        }
       });
+    } catch (e) {
+      debugPrint("Analiz Sayfası Hatası: $e");
+      if (!mounted) return;
+
+      String userFriendlyMessage =
+          'Sunucuyla bağlantı kurulamadı. Aynı Wi‑Fi ağında olduğunuzdan ve sunucu IP ayarının doğru olduğundan emin olun.';
+
+      if (e is DioException) {
+        final responseData = e.response?.data;
+        if (responseData is Map<String, dynamic> && responseData['error'] != null) {
+          userFriendlyMessage = responseData['error'].toString();
+        } else if (responseData is String && responseData.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(responseData);
+            if (decoded is Map && decoded['error'] != null) {
+              userFriendlyMessage = decoded['error'].toString();
+            } else {
+              userFriendlyMessage = e.message ?? e.error?.toString() ?? userFriendlyMessage;
+            }
+          } catch (_) {
+            userFriendlyMessage = e.message ?? e.error?.toString() ?? userFriendlyMessage;
+          }
+        } else {
+          userFriendlyMessage = e.message ?? e.error?.toString() ?? userFriendlyMessage;
+        }
+      } else if (e is TimeoutException) {
+        userFriendlyMessage =
+            'Sunucu yanıt vermedi. Bağlantıyı kontrol edip tekrar deneyin.';
+      } else if (e.toString().contains('ConnectivityResult.none')) {
+        userFriendlyMessage = 'İnternet bağlantınızı kontrol edin.';
+      } else if (e.toString().contains('429') || e.toString().contains('kota')) {
+        userFriendlyMessage =
+            'Yapay zeka servisi şu an yoğun. Lütfen kısa bir süre bekleyip tekrar deneyin.';
+      } else if (e is Exception) {
+        userFriendlyMessage = e.toString().replaceFirst('Exception: ', '');
+      }
+      
+      setState(() {
+        _errorMessage = userFriendlyMessage;
+        _currentState = AnalysisState.error;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userFriendlyMessage), backgroundColor: Colors.redAccent),
+      );
     }
   }
 
@@ -258,51 +443,200 @@ class _AnalysisResultModalState extends State<AnalysisResultModal> {
     final dataProvider = context.watch<DataProvider>();
     
     return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
+      height: MediaQuery.of(context).size.height * 0.75,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
       ),
       padding: const EdgeInsets.all(32),
-      child: dataProvider.isLoading || _result == null
-        ? Center(child: Column(
-            mainAxisSize: MainAxisSize.min,
+      child: _buildContent(dataProvider),
+    );
+  }
+
+  Widget _buildContent(DataProvider dataProvider) {
+    if (_currentState == AnalysisState.loading || _currentState == AnalysisState.initial) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(strokeWidth: 5, color: AppTheme.primaryColor),
+            const SizedBox(height: 20),
+            Text("Yapay Zeka Analiz Ediyor...", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text("Besin değerleri hesaplanıyor", style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    } else if (_currentState == AnalysisState.error) {
+      return SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+              ),
+            ),
+            const Icon(Icons.error_outline_rounded, size: 56, color: Colors.redAccent),
+            const SizedBox(height: 12),
+            Text(
+              'Analiz Tamamlanamadı',
+              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage ?? 'Bilinmeyen bir hata oluştu.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.blueGrey, fontSize: 12, height: 1.35),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () async {
+                final dio = context.read<DioService>();
+                final saved = await ServerSettingsSheet.show(context, dio);
+                if (saved == true && mounted) {
+                  _analyze();
+                }
+              },
+              icon: const Icon(Icons.wifi),
+              label: Text('Wi-Fi IP: ${ApiConfig.suggestedWifiIp}'),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              onPressed: _analyze,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Tekrar Dene'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const CircularProgressIndicator(strokeWidth: 5, color: AppTheme.primaryColor),
-              const SizedBox(height: 20),
-              Text("Yapay Zeka İnceliyor...", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Text(dataProvider.error ?? "Besin değerleri hesaplanıyor", style: const TextStyle(color: Colors.grey), textAlign: TextAlign.center),
-            ],
-          ))
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text("Analiz Raporu", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold)),
-                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Text(
-                    _result!,
-                    style: const TextStyle(fontSize: 16, height: 1.6),
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context), 
-                  child: const Text("Kapat")
-                ),
-              ),
+              Text("Analiz Raporu", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold)),
+              IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
             ],
           ),
+          const SizedBox(height: 24),
+          _buildMacroBadge(_result!['yemek_adi'] ?? 'Bilinmeyen Yemek', Icons.restaurant, AppTheme.primaryColor),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(child: _buildStatCard("Kalori", (_result!['tahmini_kalori'] ?? 0).toString(), "kcal", Colors.orange)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildStatCard("Protein", _result!['makrolar']?['protein']?.toString().replaceAll(RegExp(r'[^0-9]'), '') ?? '0', "g", Colors.blue)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildStatCard("Karbo", _result!['makrolar']?['karbonhidrat']?.toString().replaceAll(RegExp(r'[^0-9]'), '') ?? '0', "g", Colors.green)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildStatCard("Yağ", _result!['makrolar']?['yag']?.toString().replaceAll(RegExp(r'[^0-9]'), '') ?? '0', "g", Colors.red)),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Text("AI Önerisi", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Text(
+                    _result!['oneri'] ?? "Sağlıklı bir öğün!",
+                    style: const TextStyle(fontSize: 14, height: 1.5, color: Colors.blueGrey),
+                  ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton.icon(
+              onPressed: () => _saveToDiary(dataProvider, context.read<AuthProvider>()),
+              icon: const Icon(Icons.bookmark_add_outlined),
+              label: const Text("Beslenme Günlüğüne Ekle"),
+            ),
+          ),
+        ],
+      );
+    }
+  }
+
+  Widget _buildMacroBadge(String text, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 10),
+          Text(text, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: color)),
+        ],
+      ),
     );
+  }
+
+  Widget _buildStatCard(String label, String value, String unit, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(value, style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+              const SizedBox(width: 4),
+              Text(unit, style: GoogleFonts.inter(fontSize: 12, color: color.withValues(alpha: 0.7))),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveToDiary(DataProvider dataProvider, AuthProvider authProvider) async {
+    if (_result == null) return;
+    
+    final userId = authProvider.user?.uid ?? "web_mock_user";
+
+    double parseMacro(dynamic value) {
+      if (value == null) return 0.0;
+      return double.tryParse(value.toString().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+    }
+
+    await dataProvider.logMeal(
+      userId: userId,
+      foodName: _result!['yemek_adi'] ?? 'Bilinmeyen',
+      calories: (_result!['tahmini_kalori'] ?? 0).toDouble(),
+      protein: parseMacro(_result!['makrolar']?['protein']),
+      carbs: parseMacro(_result!['makrolar']?['karbonhidrat']),
+      fat: parseMacro(_result!['makrolar']?['yag']),
+      imageUrl: _result!['imageUrl'],
+    );
+
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Yemek günlüğüne başarıyla kaydedildi!"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 }

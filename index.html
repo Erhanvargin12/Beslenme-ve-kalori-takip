@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Akıllı Sağlık & Beslenme Asistanı</title>
+    <title>Akıllı Beslenme | Kişisel Sağlık Asistanınız</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -43,7 +43,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
             position: sticky;
             top: 0;
             z-index: 100;
@@ -87,14 +87,14 @@
             backdrop-filter: blur(20px);
             border-radius: 24px;
             padding: 30px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.7);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
         .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12);
         }
 
         .card-header {
@@ -281,6 +281,37 @@
             border-color: #8b5cf6;
             background: #f3f4f6;
         }
+        .file-upload-wrapper.dragover .file-upload-display {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.05);
+            transform: scale(1.02);
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+        }
+        .empty-state {
+            margin-top: 25px;
+            text-align: center;
+            padding: 30px 20px;
+            background: rgba(248, 250, 252, 0.6);
+            border: 1px dashed #cbd5e1;
+            border-radius: 16px;
+            color: var(--text-muted);
+            transition: opacity 0.3s ease;
+        }
+        .empty-state svg {
+            margin-bottom: 12px;
+        }
+        .empty-state h4 {
+            color: #475569;
+            font-size: 1.1rem;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        .empty-state p {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            max-width: 80%;
+            margin: 0 auto;
+        }
         #imagePreview {
             max-width: 100%;
             border-radius: 8px;
@@ -292,8 +323,14 @@
 <body>
 
     <nav class="navbar">
-        <h1>🌿 Akıllı Beslenme <span>AI Destekli</span></h1>
-        <div style="font-weight: 500; color: var(--text-muted);">Hoş Geldiniz 🙌</div>
+        <h1>
+            <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+            Akıllı Beslenme <span>AI Destekli</span>
+        </h1>
+        <div style="font-weight: 500; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
+            Hoş Geldiniz
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
     </nav>
 
     <div class="container">
@@ -303,8 +340,8 @@
             <!-- VKİ Formu -->
             <div class="card">
                 <div class="card-header">
-                    <h2>Fiziksel Verilerini Gir</h2>
-                    <p>Boy ve kilonu girerek vücut kitle indeksini anında hesapla.</p>
+                    <h2>Fiziksel Profilinizi Oluşturun</h2>
+                    <p>Güncel vücut analiziniz için boy ve kilo bilgilerinizi paylaşın.</p>
                 </div>
                 <form id="vkiForm">
                     <div class="form-group">
@@ -327,8 +364,11 @@
             <!-- Yapay Zeka AI Formu -->
             <div class="card">
                 <div class="card-header">
-                    <h2>🤖 Yapay Zeka Yemek Analizi</h2>
-                    <p>Yemeğinin fotoğrafını yükle, kalorisini ve içeriğini söyleyelim.</p>
+                    <h2 style="display: flex; align-items: center; gap: 8px;">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        Yapay Zeka ile Öğün Analizi
+                    </h2>
+                    <p>Tabağınızın fotoğrafını yükleyin, kalori ve besin değerlerini saniyeler içinde keşfedelim.</p>
                 </div>
                 <div class="file-upload-wrapper">
                     <input type="file" id="yemekFoto" accept="image/*">
@@ -342,6 +382,11 @@
                     <span id="btnText">Fotoğrafı Analiz Et</span>
                     <div class="loader" id="aiLoader"></div>
                 </button>
+                <div id="emptyState" class="empty-state">
+                    <svg width="48" height="48" fill="none" stroke="#cbd5e1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    <h4>Bulgular & Makrolar</h4>
+                    <p>Henüz bir analiz yapılmadı. Öğününüzü yükleyerek besin değerlerini burada görebilirsiniz.</p>
+                </div>
                 <div id="aiSonuc" class="ai-result"></div>
             </div>
 
@@ -351,8 +396,8 @@
         <div class="right-col">
             <div class="card" style="height: 100%;">
                 <div class="card-header">
-                    <h2>Kullanıcı Geçmişi</h2>
-                    <p>Sisteme kayıt olan kullanıcıların sağlık durumu.</p>
+                    <h2>Güncel Kullanıcı Analizleri</h2>
+                    <p>Topluluğumuzdaki diğer kullanıcıların son ölçümleri ve sağlık durumları.</p>
                 </div>
                 <div style="overflow-x: auto;">
                     <table>
@@ -450,6 +495,40 @@
         const fotoInput = document.getElementById('yemekFoto');
         const imgPreview = document.getElementById('imagePreview');
         const analizBtn = document.getElementById('analizBtn');
+        const emptyState = document.getElementById('emptyState');
+        const fileWrapper = document.querySelector('.file-upload-wrapper');
+
+        // Drag and drop olayları
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            fileWrapper.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            fileWrapper.addEventListener(eventName, () => {
+                fileWrapper.classList.add('dragover');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            fileWrapper.addEventListener(eventName, () => {
+                fileWrapper.classList.remove('dragover');
+            }, false);
+        });
+
+        fileWrapper.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files && files.length > 0) {
+                fotoInput.files = files;
+                const event = new Event('change');
+                fotoInput.dispatchEvent(event);
+            }
+        });
 
         fotoInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -478,6 +557,7 @@
             loader.style.display = "block";
             analizBtn.disabled = true;
             sonucKutusu.style.display = "none";
+            if (emptyState) emptyState.style.display = "none";
 
             try {
                 const cevap = await fetch(`${API_URL}/analiz-et`, {

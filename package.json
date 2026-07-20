@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "node server.js & cd akilli_beslenme_web && npm run dev",
+    "dev": "concurrently -k -n api,web -c blue,green \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "node --dns-result-order=ipv4first server.js",
+    "dev:web": "npm run dev --prefix akilli_beslenme_web",
+    "tunnel": "npx -y localtunnel --port 3000 --subdomain akillibeslenme2026",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -17,6 +20,11 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.0",
     "express": "^5.2.1",
-    "firebase-admin": "^13.7.0"
+    "firebase-admin": "^13.7.0",
+    "nodemailer": "^8.0.7"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "localtunnel": "^2.0.2"
   }
 }

@@ -1,367 +1,539 @@
-import React, { useState, useEffect } from 'react';
-import { Download, Users, FileText, Search, UserCircle2, Plus, X } from 'lucide-react';
-import { jsPDF } from 'jspdf';
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Search, UserPlus, Filter, MoreVertical, Mail, ArrowRight, 
+  Loader2, FileText, X, Send, UserX, RotateCcw, AlertTriangle 
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
 import Card from '../components/Card';
-import Input from '../components/Input';
 import Button from '../components/Button';
-import Alert from '../components/Alert';
+import { fetchUserHistory, saveUserVki } from '../services/historyService';
+import { downloadFullReport } from '../services/reportService';
+import type { UserHistory } from '../types/history';
+import { getApiBaseUrl } from '../config/api';
 
-import type { UserHistory, Durum, SortField, SortOrder } from "../types/history";
-import { fetchUserHistory, saveUserVki } from "../services/historyService";
-import { applyFilters } from "../utils/historyHelpers";
+const API_URL = getApiBaseUrl();
 
-export default function UsersPage() {
-  const [data, setData] = useState<UserHistory[]>([]);
-  const [search, setSearch] = useState("");
-  const [kategori, setKategori] = useState<Durum | "all">("all");
-  const [sortField] = useState<SortField>("vki");
-  const [sortOrder] = useState<SortOrder>("desc");
+export default function Users() {
+  const navigate = useNavigate();
+  const [users, setUsers] = useState<UserHistory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // İşlem Durumları
+  const [reportLoadingId, setReportLoadingId] = useState<string | null>(null);
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+  
+  // Modal Durumları
+  const [messageModalUser, setMessageModalUser] = useState<UserHistory | null>(null);
+  const [messageText, setMessageText] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  
+  // Yeni Profil Modalı
+  const [isNewProfileModalOpen, setIsNewProfileModalOpen] = useState(false);
+  const [newProfileForm, setNewProfileForm] = useState({ isim: '', boy: '', kilo: '' });
+  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isim, setIsim] = useState('');
-  const [boy, setBoy] = useState('');
-  const [kilo, setKilo] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+  // Onay Modalı
+  const [confirmAction, setConfirmAction] = useState<{
+    userId: string;
+    authId?: string;
+    type: 'deactivate' | 'reset';
+    title: string;
+    message: string;
+  } | null>(null);
 
-  const loadData = () => {
-    setLoading(true);
-    fetchUserHistory().then(d => {
-      setData(d);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      setLoadError(null);
+      const data = await fetchUserHistory();
+      setUsers(data);
+    } catch (err) {
+      console.error("[Sistem] Kullanıcı verileri alınamadı:", err);
+      const message =
+        err instanceof Error ? err.message : 'Kullanıcı listesi alınamadı.';
+      setLoadError(message);
+      setUsers([]);
+    } finally {
       setLoading(false);
-    }).catch(() => {
-      setError("Veritabanına bağlanılamadı. JSON kayıtları alınamıyor.");
-      setLoading(false);
-    });
+    }
   };
 
   useEffect(() => {
-    loadData();
+    loadUsers();
   }, []);
 
-  const filteredUsers = applyFilters(data, search, kategori, sortField, sortOrder);
-  const kategoriListesi: Array<Durum | "all"> = ["all", "Zayıf", "Normal", "Fazla Kilolu", "Obez"];
+  // Dropdown dışına tıklandığında kapat
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setActiveDropdownId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isim || !boy || !kilo) return;
+  const filteredUsers = users.filter(user => 
+    user.isim.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // --- Aksiyon Fonksiyonları ---
+
+  const handleCreateProfile = async () => {
+    const { isim, boy, kilo } = newProfileForm;
+    if (!isim || !boy || !kilo) {
+      alert('Lütfen tüm alanları doldurun.');
+      return;
+    }
     
-    setIsSaving(true);
+    setIsCreatingProfile(true);
     try {
-      const response = await saveUserVki(isim, parseInt(boy), parseInt(kilo));
-      setSaveSuccess(response);
-      loadData(); // Form kaydedildikten sonra listeyi güncelle
-      setTimeout(() => {
-        setIsModalOpen(false);
-        setSaveSuccess(null);
-        setIsim(''); setBoy(''); setKilo('');
-      }, 2000);
-    } catch {
-      alert("Kullanıcı kaydedilirken bir hata oluştu.");
+      await saveUserVki(isim, Number(boy), Number(kilo));
+      alert('Yeni profil başarıyla oluşturuldu.');
+      setIsNewProfileModalOpen(false);
+      setNewProfileForm({ isim: '', boy: '', kilo: '' });
+      loadUsers();
+    } catch (err) {
+      alert('Profil oluşturulurken bir hata oluştu.');
     } finally {
-      setIsSaving(false);
+      setIsCreatingProfile(false);
     }
   };
 
-  const generatePDF = async () => {
+  const handleSendMessage = async () => {
+    if (!messageModalUser || !messageText) return;
+
+    const targetAuthId = messageModalUser.authId || messageModalUser.id;
+    if (!messageModalUser.authId) {
+      alert(
+        'Bu kullanıcının Firebase authId kaydı yok; mesaj mobilde görünmeyebilir. Kullanıcının mobil uygulamadan en az bir kez giriş yapması gerekir.'
+      );
+    }
+
+    setIsSending(true);
+    console.log(`[Sistem] ${messageModalUser.isim} kullanıcısına mesaj gönderiliyor (${targetAuthId})...`);
+    
     try {
-      const topUser = filteredUsers[0];
-      let aiAdvice = "Genel olarak sağlıklı beslenmeye özen gösterin.";
-      
-      if (topUser) {
-        // AI'dan gerçek zamanlı tavsiye alalım
-        const { fetchAiAdvice } = await import("../services/historyService");
-        aiAdvice = await fetchAiAdvice({
-          isim: topUser.isim,
-          vki: topUser.vki,
-          durum: topUser.durum,
-          sonYemekler: "Beslenme verileri analiz ediliyor..." // Gelecekte yemek logları buraya eklenebilir
-        });
-      }
-
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const dateStr = new Date().toLocaleString('tr-TR');
-      
-      // --- HEADER & BRANDING ---
-      pdf.setFillColor(45, 55, 72); 
-      pdf.rect(0, 0, 210, 45, 'F');
-      
-      pdf.setFontSize(26);
-      pdf.setTextColor(255, 255, 255);
-      pdf.text('AKILLI SAGLIK & BESLENME', 14, 20);
-      
-      pdf.setFontSize(14);
-      pdf.setTextColor(150, 160, 255);
-      pdf.text('E-Tibbi Analiz ve Haftalik Takip Raporu', 14, 30);
-      
-      pdf.setFontSize(9);
-      pdf.setTextColor(200, 200, 200);
-      pdf.text(`Rapor No: #AKIL-PDF-${Math.floor(Math.random() * 100000)}`, 150, 20);
-      pdf.text(`Düzenleme Tarihi: ${dateStr}`, 150, 25);
-
-      // --- 1. BOLUM: KULLANICI SAGLIK OZETI ---
-      pdf.setTextColor(30, 41, 59);
-      pdf.setFontSize(16);
-      pdf.text('1. Genel Saglik ve VKI Özeti', 14, 60);
-      
-      pdf.setDrawColor(226, 232, 240);
-      pdf.line(14, 63, 196, 63);
-
-      if (topUser) {
-        pdf.setFontSize(11);
-        pdf.text(`Hasta Adi: ${topUser.isim}`, 16, 75);
-        pdf.text(`Vücut Kitle Endeksi (VKI): ${topUser.vki}`, 16, 82);
-        pdf.text(`Genel Durum: ${topUser.durum}`, 16, 89);
-        
-        // VKI Kutusu (Highlight)
-        pdf.setFillColor(248, 250, 252);
-        pdf.setDrawColor(79, 70, 229);
-        pdf.roundedRect(120, 70, 70, 25, 3, 3, 'FD');
-        pdf.setTextColor(79, 70, 229);
-        pdf.setFontSize(12);
-        pdf.text('VKI ANALIZI', 135, 78);
-        pdf.setFontSize(20);
-        pdf.text(topUser.vki.toString(), 142, 88);
-      }
-
-      // --- 2. BOLUM: AI ASISTAN TAVSIYESI (DINAMIK) ---
-      pdf.setTextColor(30, 41, 59);
-      pdf.setFontSize(16);
-      pdf.text('2. AI Asistan Beslenme Tavsiyesi', 14, 110);
-      pdf.line(14, 113, 196, 113);
-      
-      pdf.setFontSize(10);
-      pdf.setTextColor(71, 85, 105);
-      
-      // AI'dan gelen tavsiyeyi PDF'e yazdıralım
-      pdf.text(aiAdvice, 16, 122, { maxWidth: 170 });
-
-      // --- 3. BOLUM: TUM KAYITLAR (TABLO) ---
-      pdf.setTextColor(30, 41, 59);
-      pdf.setFontSize(16);
-      pdf.text('3. Haftalik Veri Kayitlari (Loglar)', 14, 140);
-      pdf.line(14, 143, 196, 143);
-
-      // Tablo Header
-      pdf.setFillColor(241, 245, 249);
-      pdf.rect(14, 150, 182, 10, 'F');
-      pdf.setFontSize(10);
-      pdf.text('SIRA', 16, 156);
-      pdf.text('AD SOYAD', 32, 156);
-      pdf.text('BOY', 85, 156);
-      pdf.text('KILO', 110, 156);
-      pdf.text('DURUM', 135, 156);
-      pdf.text('VKI', 180, 156);
-
-      let y = 168;
-      filteredUsers.slice(0, 15).forEach((user, idx) => { // Sayfa tasarımı için ilk 15 kayıt
-        pdf.setDrawColor(241, 245, 249);
-        pdf.line(14, y + 2, 196, y + 2);
-        
-        pdf.text(`${idx + 1}`, 16, y);
-        pdf.text(user.isim, 32, y);
-        pdf.text(`${user.boy}cm`, 85, y);
-        pdf.text(`${user.kilo}kg`, 110, y);
-        pdf.text(user.durum, 135, y);
-        pdf.text(user.vki.toString(), 180, y);
-        y += 10;
+      const response = await fetch(`${API_URL}/notifications/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: targetAuthId,
+          message: messageText,
+          content: messageText,
+        })
       });
 
-      // --- FOOTER ---
-      pdf.setFontSize(8);
-      pdf.setTextColor(148, 163, 184);
-      pdf.text('Bu rapor Google Gemini AI ve Akilli Beslenme Bulut Sunuculari tarafindan teshis amaçli olusturulmustur.', 40, 285);
-      pdf.text('Tüm haklari saklidir © 2026', 90, 290);
-
-      pdf.save(`Beslenme-Raporu-${topUser?.isim || 'Kullanici'}.pdf`);
-    } catch (err) {
-      console.error("PDF Hatası:", err);
-      alert("PDF dökümanı oluşturulurken bir hata oluştu.");
+      if (response.ok) {
+        alert(`Mesaj başarıyla iletildi: ${messageModalUser.isim}`);
+        setMessageModalUser(null);
+        setMessageText('');
+      } else {
+        throw new Error("Mesaj gönderilemedi.");
+      }
+    } catch (err: any) {
+      console.error("Mesaj gönderim hatası:", err);
+      alert(`Hata: Mesaj iletilemedi.\nURL: ${API_URL}/notifications/send\nDetay: ${err.message || 'Sunucu bağlantısı kurulamadı.'}`);
+    } finally {
+      setIsSending(false);
     }
   };
 
-  const getBadgeClass = (durum: string) => {
-    if (durum === "Normal") return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200 border-emerald-300";
-    if (durum === "Zayıf") return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-amber-300";
-    if (durum === "Fazla Kilolu") return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 border-orange-300";
-    return "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200 border-rose-300";
+  const handleAdminAction = async () => {
+    if (!confirmAction) return;
+    
+    try {
+      const endpoint = confirmAction.type === 'deactivate' 
+        ? `${API_URL}/kullanicilar/deactivate/${confirmAction.userId}`
+        : `${API_URL}/kullanicilar/reset/${confirmAction.authId || confirmAction.userId}`;
+
+      const res = await fetch(endpoint, { method: 'POST' });
+      if (res.ok) {
+        alert(confirmAction.type === 'deactivate' ? "Kullanıcı pasife alındı." : "Veriler sıfırlandı.");
+        loadUsers(); // Listeyi yenile
+      } else {
+        throw new Error("İşlem başarısız.");
+      }
+    } catch (err) {
+      alert("Hata: İşlem gerçekleştirilemedi.");
+    } finally {
+      setConfirmAction(null);
+    }
   };
 
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full pt-20">
+        <Loader2 className="animate-spin h-10 w-10 text-emerald-500 mb-4" />
+        <p className="text-slate-500 font-medium italic">Kullanıcı veritabanı taranıyor...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6 md:p-10 max-w-7xl mx-auto w-full relative">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+    <div className="w-full animate-in fade-in duration-500 relative">
+      
+      {/* Header Bölümü */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-2">Kullanıcı & Takip Yönetimi</h1>
-          <p className="text-gray-500">Sistemdeki tüm kayıtları inceleyin, raporlayın ve yeni hastalar ekleyin.</p>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Profil Yönetimi</h1>
+          <p className="text-slate-500 mt-1 font-medium italic">Sistemdeki tüm kayıtlı kullanıcıların sağlık ve beslenme geçmişi.</p>
         </div>
-        <div className="flex gap-4">
-          <Button onClick={() => setIsModalOpen(true)} size="lg" className="bg-indigo-600 hover:bg-indigo-500 gap-2 font-bold shadow-lg text-white border-0">
-            <Plus size={20} /> Yeni Kullanıcı Ekle
+        <div className="flex gap-2">
+          <Button variant="ghost" className="rounded-xl border border-slate-200 dark:border-slate-700">
+            <Filter size={18} className="mr-2" /> Filtrele
           </Button>
-          <Button onClick={generatePDF} size="lg" className="bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 gap-2 font-bold shadow-lg text-white border-0">
-            <Download size={20} /> Haftalık PDF Raporu
+          <Button 
+            onClick={() => setIsNewProfileModalOpen(true)}
+            className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-500/20"
+          >
+            <UserPlus size={18} className="mr-2" /> Yeni Profil
           </Button>
         </div>
       </div>
 
-      {error ? (
-        <Alert variant="error" title="Bağlantı Hatası">{error}</Alert>
-      ) : (
-        <Card variant="outlined" className="p-0 overflow-hidden bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border-slate-200 dark:border-slate-800">
-          
-          <div className="p-6 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800">
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-              
-              <div className="relative w-full md:w-96 group">
-                <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                <input 
-                  type="text"
-                  placeholder="TC Kimlik, İsim, Vücut Endeksi ara..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all text-sm outline-none dark:text-white shadow-sm"
-                />
-              </div>
-
-              <div className="flex gap-2 flex-wrap w-full md:w-auto">
-                {kategoriListesi.map(cat => (
-                  <button 
-                    key={cat}
-                    onClick={() => setKategori(cat)}
-                    className={`px-4 py-2 text-xs font-semibold rounded-full transition-all border ${kategori === cat ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-105' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}
-                  >
-                    {cat === "all" ? "Tümü" : cat}
-                  </button>
-                ))}
-              </div>
-            </div>
+      {loadError && (
+        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+          <AlertTriangle className="mt-0.5 shrink-0" size={20} />
+          <div>
+            <p className="font-semibold">Kullanıcı listesi yüklenemedi</p>
+            <p className="mt-1 text-sm opacity-90">{loadError}</p>
+            <button
+              type="button"
+              onClick={loadUsers}
+              className="mt-3 text-sm font-semibold underline"
+            >
+              Tekrar dene
+            </button>
           </div>
-
-          <div id="report-panel" className="overflow-x-auto min-h-[400px] p-4 bg-white dark:bg-slate-900">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center h-[300px]">
-                <Users size={48} className="text-indigo-200 dark:text-indigo-900/50 animate-pulse mb-4" />
-                <p className="text-slate-500 font-medium">Kayıt dosyaları taranıyor...</p>
-              </div>
-            ) : filteredUsers.length === 0 ? (
-               <div className="flex flex-col items-center justify-center h-[300px] text-center">
-                 <FileText size={48} className="text-slate-200 dark:text-slate-800 mb-4" />
-                 <p className="text-slate-500 font-medium">Bu kriterlere uygun bir hasta kaydı bulunamadı.</p>
-               </div>
-            ) : (
-              <table className="w-full text-left border-collapse min-w-max">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-700">
-                    <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest pl-8 w-1/3">Kullanıcı Profili</th>
-                    <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Fiziksel Veriler</th>
-                    <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Temel Teşhis</th>
-                    <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-right pr-8">Kritiklik (VKİ)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {filteredUsers.map((user, idx) => (
-                    <motion.tr 
-                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}
-                      key={idx} className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/40 transition-colors group cursor-pointer"
-                    >
-                      <td className="p-4 pl-8">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
-                            <UserCircle2 size={24} />
-                          </div>
-                          <div>
-                            <p className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{user.isim}</p>
-                            <p className="text-xs text-slate-500">Kayıt ID: #AKIL-{100 + idx}-{user.kilo}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                          <span className="font-mono bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Boy: {user.boy}cm</span>
-                          <span className="font-mono bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Kilo: {user.kilo}kg</span>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <span className={`px-3 py-1 text-xs font-bold rounded-full border ${getBadgeClass(user.durum)}`}>
-                          {user.durum}
-                        </span>
-                      </td>
-                      <td className="p-4 pr-8 text-right">
-                        <span className="text-xl font-black text-slate-800 dark:text-white">{user.vki}</span>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </Card>
+        </div>
       )}
 
-      {/* YENİ KULLANICI EKLEME MODALI */}
+      {/* Liste Kartı */}
+      <Card className="p-0 overflow-visible border border-slate-200/60 dark:border-slate-700/50 shadow-sm rounded-3xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-md">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 rounded-t-3xl">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <input 
+              type="text" 
+              placeholder="İsim veya profil ID ile ara..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/50 dark:bg-slate-900/20">
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Kullanıcı</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest text-center">Fiziksel Bilgi</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest text-center">Analiz Skoru (VKİ)</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest text-center">Durum</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">İşlemler</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-10 text-center text-slate-400 italic">Aranan kriterlere uygun kullanıcı bulunamadı.</td>
+                </tr>
+              ) : (
+                filteredUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/20 transition-colors group">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/40 flex items-center justify-center font-bold text-emerald-600">
+                          {user.isim.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 dark:text-white">{user.isim}</p>
+                          <p className="text-xs text-slate-400 font-mono">{user.id?.substring(0, 8)}...</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{user.boy} cm / {user.kilo} kg</span>
+                        <span className="text-[10px] text-slate-400">Yaş: —</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex flex-col items-center">
+                        <div className="text-lg font-black text-slate-800 dark:text-slate-100">{user.vki}</div>
+                        <div className="w-20 h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mt-1">
+                          <div 
+                            className={`h-full rounded-full ${user.vki < 18.5 ? 'bg-amber-400' : user.vki < 25 ? 'bg-emerald-500' : user.vki < 30 ? 'bg-orange-500' : 'bg-rose-500'}`}
+                            style={{ width: `${Math.min(100, (user.vki / 40) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm ${
+                        user.vki < 18.5 ? 'bg-amber-50 text-amber-600' : 
+                        user.vki < 25 ? 'bg-emerald-50 text-emerald-600' : 
+                        user.vki < 30 ? 'bg-orange-50 text-orange-600' : 'bg-rose-50 text-rose-600'
+                      }`}>
+                        {user.vki < 18.5 ? 'Zayıf' : user.vki < 25 ? 'Normal' : user.vki < 30 ? 'Kilolu' : 'Obez'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5 text-right relative">
+                       <div className="flex items-center justify-end gap-x-2">
+                          
+                          {/* Rapor İndir */}
+                          <div className="relative group/tip">
+                            <button 
+                               disabled={reportLoadingId === user.id}
+                               onClick={() => downloadFullReport(user.authId || user.id, user.isim, (v) => setReportLoadingId(v ? user.id : null))}
+                               className="p-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 text-blue-500 hover:text-blue-700 transition-all duration-150 disabled:opacity-40 shadow-sm border border-blue-100 dark:border-blue-800/40"
+                            >
+                               {reportLoadingId === user.id ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                            </button>
+                            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover/tip:opacity-100 transition-opacity pointer-events-none">
+                              <span className="whitespace-nowrap bg-gray-900 text-white text-xs font-semibold px-2.5 py-1.5 rounded-md shadow-lg">Tam Geçmiş Raporu</span>
+                              <div className="w-2 h-2 bg-gray-900 rotate-45 mx-auto -mt-1" />
+                            </div>
+                          </div>
+
+                          {/* Mesaj Gönder */}
+                          <div className="relative group/tip">
+                            <button 
+                               onClick={() => setMessageModalUser(user)}
+                               className="p-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 text-indigo-500 hover:text-indigo-700 transition-all duration-150 shadow-sm border border-indigo-100 dark:border-indigo-800/40"
+                            >
+                               <Mail size={16} />
+                            </button>
+                            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover/tip:opacity-100 transition-opacity pointer-events-none">
+                              <span className="whitespace-nowrap bg-gray-900 text-white text-xs font-semibold px-2.5 py-1.5 rounded-md shadow-lg">Mesaj Gönder</span>
+                              <div className="w-2 h-2 bg-gray-900 rotate-45 mx-auto -mt-1" />
+                            </div>
+                          </div>
+
+                          {/* Profil Detayı */}
+                          <div className="relative group/tip">
+                            <button 
+                               onClick={() => navigate(`/admin/user-details/${user.id}`)}
+                               className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-all duration-150 shadow-sm border border-slate-200 dark:border-slate-700"
+                            >
+                               <ArrowRight size={16} />
+                            </button>
+                            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover/tip:opacity-100 transition-opacity pointer-events-none">
+                              <span className="whitespace-nowrap bg-gray-900 text-white text-xs font-semibold px-2.5 py-1.5 rounded-md shadow-lg">Profil Dosyası</span>
+                              <div className="w-2 h-2 bg-gray-900 rotate-45 mx-auto -mt-1" />
+                            </div>
+                          </div>
+
+                          {/* Admin Menüsü */}
+                          <div className="relative group/tip">
+                            <div className="relative">
+                              <button 
+                                onClick={() => setActiveDropdownId(activeDropdownId === user.id ? null : user.id)}
+                                className={`p-2.5 rounded-xl transition-all duration-150 shadow-sm border ${activeDropdownId === user.id ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white border-slate-300 dark:border-slate-600' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 border-slate-200 dark:border-slate-700'}`}
+                              >
+                                <MoreVertical size={16} />
+                              </button>
+                              {activeDropdownId !== user.id && (
+                                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover/tip:opacity-100 transition-opacity pointer-events-none">
+                                  <span className="whitespace-nowrap bg-gray-900 text-white text-xs font-semibold px-2.5 py-1.5 rounded-md shadow-lg">Diğer İşlemler</span>
+                                  <div className="w-2 h-2 bg-gray-900 rotate-45 mx-auto -mt-1" />
+                                </div>
+                              )}
+
+                              <AnimatePresence>
+                                {activeDropdownId === user.id && (
+                                  <motion.div 
+                                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                    className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 z-50 overflow-hidden"
+                                  >
+                                    <button 
+                                      onClick={() => setConfirmAction({
+                                        userId: user.id,
+                                        type: 'deactivate',
+                                        title: 'Kullanıcıyı Pasife Al',
+                                        message: `${user.isim} isimli kullanıcıyı pasife almak istediğinize emin misiniz?`
+                                      })}
+                                      className="w-full px-4 py-3 text-left text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors"
+                                    >
+                                      <UserX size={14} className="text-rose-500" /> Pasife Al
+                                    </button>
+                                    <button 
+                                      onClick={() => setConfirmAction({
+                                        userId: user.id,
+                                        authId: user.authId,
+                                        type: 'reset',
+                                        title: 'Verileri Sıfırla',
+                                        message: `${user.isim} kullanıcısına ait tüm beslenme ve su kayıtlarını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`
+                                      })}
+                                      className="w-full px-4 py-3 text-left text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors border-t border-slate-50 dark:border-slate-800"
+                                    >
+                                      <RotateCcw size={14} className="text-amber-500" /> Verileri Sıfırla
+                                    </button>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          </div>
+
+                       </div>
+                     </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* --- MODALLAR --- */}
+
+      {/* 1. Hızlı Mesaj Modalı */}
       <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        {messageModalUser && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white dark:bg-slate-900 rounded-[2.5rem] w-full max-w-lg shadow-2xl border border-white/10"
             >
-              <div className="flex justify-between items-center p-6 border-b border-slate-100 dark:border-slate-800">
-                <h2 className="text-xl font-bold dark:text-white">Yeni Ziyaretçi Kaydı</h2>
-                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                  <X size={24} />
-                </button>
+              <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                 <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <Mail className="text-emerald-500" /> Mesaj Gönder
+                 </h2>
+                 <button onClick={() => setMessageModalUser(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400">
+                    <X size={24} />
+                 </button>
               </div>
-              
-              <div className="p-6">
-                {saveSuccess ? (
-                  <Alert variant="success" className="mb-4">{saveSuccess}</Alert>
-                ) : (
-                  <form onSubmit={handleSave} className="space-y-4">
-                    <Input 
-                      id="form-isim" 
-                      label="İsim Soyisim" 
-                      placeholder="Örn: Ahmet Yılmaz" 
-                      value={isim}
-                      onChange={(e) => setIsim(e.target.value)}
-                      required 
-                    />
-                    <div className="flex gap-4">
-                      <Input 
-                        id="form-boy" 
-                        label="Boy (cm)" 
-                        type="number" 
-                        placeholder="Örn: 175" 
-                        value={boy}
-                        onChange={(e) => setBoy(e.target.value)}
-                        required 
-                      />
-                      <Input 
-                        id="form-kilo" 
-                        label="Kilo (kg)" 
-                        type="number" 
-                        placeholder="Örn: 70" 
-                        value={kilo}
-                        onChange={(e) => setKilo(e.target.value)}
-                        required 
-                      />
+              <div className="p-8 space-y-6">
+                 <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl">
+                    <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold">{messageModalUser.isim.charAt(0)}</div>
+                    <div>
+                       <p className="text-sm font-black text-slate-800 dark:text-white">{messageModalUser.isim}</p>
+                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Alıcı Profil</p>
                     </div>
-                    <Button 
-                      type="submit" 
-                      className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white" 
-                      disabled={isSaving || !isim || !boy || !kilo}
-                    >
-                      {isSaving ? "Kaydediliyor..." : "Sisteme Eklensin"}
-                    </Button>
-                  </form>
-                )}
+                 </div>
+                 <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Mesaj İçeriği</label>
+                    <textarea 
+                      value={messageText}
+                      onChange={(e) => setMessageText(e.target.value)}
+                      placeholder="Kullanıcıya iletmek istediğiniz notu yazın..."
+                      className="w-full h-32 p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all resize-none"
+                    />
+                 </div>
+                 <Button 
+                   onClick={handleSendMessage}
+                   disabled={isSending || !messageText}
+                   className="w-full py-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-emerald-500/20 border-0 gap-2"
+                 >
+                    {isSending ? <Loader2 className="animate-spin" /> : <Send size={20} />}
+                    {isSending ? "Gönderiliyor..." : "Hızlı Mesajı İlet"}
+                 </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 2. Onay Modalı */}
+      <AnimatePresence>
+        {confirmAction && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+              className="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden border border-rose-500/20"
+            >
+              <div className="p-8 text-center">
+                 <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <AlertTriangle size={32} className="text-rose-500" />
+                 </div>
+                 <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">{confirmAction.title}</h3>
+                 <p className="text-slate-500 text-sm font-medium leading-relaxed">{confirmAction.message}</p>
+              </div>
+              <div className="p-6 bg-slate-50 dark:bg-slate-800 flex gap-3">
+                 <button 
+                   onClick={() => setConfirmAction(null)}
+                   className="flex-1 py-4 text-sm font-black text-slate-500 hover:text-slate-700 transition-colors"
+                 >
+                    Vazgeç
+                 </button>
+                 <button 
+                   onClick={handleAdminAction}
+                   className="flex-1 py-4 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-black shadow-lg shadow-rose-500/20 transition-all"
+                 >
+                    Onayla ve Uygula
+                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 3. Yeni Profil Ekleme Modalı */}
+      <AnimatePresence>
+        {isNewProfileModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white dark:bg-slate-900 rounded-[2.5rem] w-full max-w-lg shadow-2xl border border-white/10"
+            >
+              <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                 <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <UserPlus className="text-emerald-500" /> Yeni Profil Ekle
+                 </h2>
+                 <button onClick={() => setIsNewProfileModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400">
+                    <X size={24} />
+                 </button>
+              </div>
+              <div className="p-8 space-y-6">
+                 <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">İsim Soyisim</label>
+                    <input 
+                      type="text"
+                      value={newProfileForm.isim}
+                      onChange={(e) => setNewProfileForm({ ...newProfileForm, isim: e.target.value })}
+                      placeholder="Örn: Ahmet Yılmaz"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                    />
+                 </div>
+                 <div className="flex gap-4">
+                   <div className="flex-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Boy (cm)</label>
+                      <input 
+                        type="number"
+                        value={newProfileForm.boy}
+                        onChange={(e) => setNewProfileForm({ ...newProfileForm, boy: e.target.value })}
+                        placeholder="Örn: 180"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                      />
+                   </div>
+                   <div className="flex-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Kilo (kg)</label>
+                      <input 
+                        type="number"
+                        value={newProfileForm.kilo}
+                        onChange={(e) => setNewProfileForm({ ...newProfileForm, kilo: e.target.value })}
+                        placeholder="Örn: 75"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                      />
+                   </div>
+                 </div>
+                 <Button 
+                   onClick={handleCreateProfile}
+                   disabled={isCreatingProfile || !newProfileForm.isim || !newProfileForm.boy || !newProfileForm.kilo}
+                   className="w-full py-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-emerald-500/20 border-0 gap-2"
+                 >
+                    {isCreatingProfile ? <Loader2 className="animate-spin" /> : <UserPlus size={20} />}
+                    {isCreatingProfile ? "Oluşturuluyor..." : "Profili Oluştur"}
+                 </Button>
               </div>
             </motion.div>
           </div>

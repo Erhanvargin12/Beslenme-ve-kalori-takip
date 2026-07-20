@@ -1,17 +1,20 @@
-import 'package:flutter/foundation.dart';
+import '../config/api_config.dart';
 
 class AppConstants {
-  // Web için localhost, Android emülatör için 10.0.2.2, Fiziksel cihaz için PC IP'si
-  static const String baseUrl = kIsWeb 
-      ? 'http://localhost:3000' 
-      : 'http://10.0.2.2:3000'; // FIXME: Fiziksel cihazda PC IP'sini buraya yazın.
+  /// Dinamik sunucu adresi — [ApiConfig] ve ayarlar ekranından yönetilir.
+  static String get baseUrl => ApiConfig.baseUrl;
 
   // API Uç Noktaları (Endpoints)
   static const String endpointUsers = '/kullanicilar';
   static const String endpointRegister = '/kayit';
   static const String endpointAnalyze = '/analiz-et';
+  static const String endpointAnalyzeDetailed = '/analiz-et-detayli';
+  static const String endpointMeal = '/meal';
+  static const String endpointHistory = '/history'; // userId appending will be handled in repo
+  static const String endpointSummary = '/summary';
   
-  // Timeout Süreleri
-  static const Duration connectTimeout = Duration(seconds: 15);
-  static const Duration receiveTimeout = Duration(seconds: 15);
+  // Bağlantı: kısa (ANR önleme). AI analizi ayrıca repository'de 120sn timeout kullanır.
+  static const Duration connectTimeout = Duration(seconds: 20);
+  static const Duration receiveTimeout = Duration(seconds: 90);
+  static const Duration sendTimeout = Duration(seconds: 60);
 }

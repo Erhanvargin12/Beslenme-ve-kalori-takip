@@ -66,5 +66,14 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Çevrenizdeki sağlıklı restoranları ve spor salonlarını bulabilmemiz için konumunuz gereklidir.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Konumunuzun sürekli takibi ile size en yakın spor merkezlerini önerebiliriz.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>googlemaps</string>
+		<string>comgooglemaps</string>
+	</array>
 </dict>
 </plist>

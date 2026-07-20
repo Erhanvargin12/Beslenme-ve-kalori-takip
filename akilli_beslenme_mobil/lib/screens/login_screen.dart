@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/auth_provider.dart';
+import '../services/dio_service.dart';
+import '../widgets/server_settings_sheet.dart';
 import '../theme/app_theme.dart';
 import 'register_screen.dart';
 
@@ -78,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Text(
                           'Sağlıklı yaşam serüvenine devam et.',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withValues(alpha: 0.8),
                             fontSize: 16,
                           ),
                         ).animate().fadeIn(delay: 400.ms),
@@ -123,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         elevation: 10,
-                        shadowColor: AppTheme.primaryColor.withOpacity(0.5),
+                        shadowColor: AppTheme.primaryColor.withValues(alpha: 0.5),
                       ),
                       child: auth.isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
@@ -162,6 +164,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ).animate().fadeIn(delay: 1200.ms),
+                  const SizedBox(height: 16),
+                  TextButton.icon(
+                    onPressed: () {
+                      final dio = context.read<DioService>();
+                      ServerSettingsSheet.show(context, dio);
+                    },
+                    icon: const Icon(Icons.dns_outlined, size: 18),
+                    label: const Text('Sunucu bağlantı ayarları'),
+                  ),
                 ],
               ),
             ),

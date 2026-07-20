@@ -1,7 +1,7 @@
 import React from 'react';
 
 export interface CardProps {
-  title?: string;
+  title?: React.ReactNode;
   children: React.ReactNode;
   image?: string;
   imageAlt?: string;
@@ -22,8 +22,8 @@ export default function Card({
   id,
 }: CardProps) {
   const variants = {
-    elevated: `bg-white dark:bg-gray-800 shadow-md hover:shadow-lg`,
-    outlined: `bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700`,
+    elevated: `bg-white dark:bg-gray-800 border border-slate-200 dark:border-slate-700 shadow-sm`,
+    outlined: `bg-white dark:bg-gray-800 border border-slate-200 dark:border-slate-700 shadow-sm`,
     filled: `bg-gray-100 dark:bg-gray-800`,
   };
 
@@ -34,7 +34,7 @@ export default function Card({
       )}
       <div className="p-5">
         {title && (
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          <h3 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
             {title}
           </h3>
         )}

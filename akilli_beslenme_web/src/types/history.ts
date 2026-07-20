@@ -7,6 +7,8 @@ export type SortOrder = "asc" | "desc";
 
 // Kullanıcı Kayıt Veri Modeli
 export interface UserHistory {
+  id: string;
+  authId?: string;
   isim: string;
   boy: number;
   kilo: number;

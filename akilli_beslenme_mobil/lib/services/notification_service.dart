@@ -1,10 +1,17 @@
+import 'dart:async';
+
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class NotificationService {
   static Future<void> initializeNotification() async {
+    if (kIsWeb) {
+      debugPrint('Bildirimler Web ortamında desteklenmiyor.');
+      return;
+    }
     await AwesomeNotifications().initialize(
-      null, // Default icon
+      null,
       [
         NotificationChannel(
           channelKey: 'basic_channel',
@@ -15,15 +22,17 @@ class NotificationService {
           importance: NotificationImportance.High,
         )
       ],
-      debug: true,
+      debug: false,
     );
 
-    // İzin iste
-    await AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
-      if (!isAllowed) {
-        AwesomeNotifications().requestPermissionToSendNotifications();
-      }
-    });
+    // İzin diyaloğu ana thread'i kilitlemesin — arka planda iste
+    unawaited(
+      AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
+        if (!isAllowed) {
+          AwesomeNotifications().requestPermissionToSendNotifications();
+        }
+      }),
+    );
   }
 
   static Future<void> showNotification({
